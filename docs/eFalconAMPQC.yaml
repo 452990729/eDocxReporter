@@ -1,0 +1,10 @@
+DNATotal: 300
+A260A280: "1.7~2.2"
+A260A230: 1.4
+LibraryMainSize: "340~400"
+LibraryMainConcentration: 5
+SequencingBase: 1.8
+SequencingDepth: 25000
+SequencingUniformaty: 0.95
+SequencingMergeRate: 0.7
+SequencingQ30: 0.85

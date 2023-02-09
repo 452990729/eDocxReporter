@@ -1,0 +1,44 @@
+test1:
+  type: string
+  name: ttt
+  value: ggg
+test2:
+  type: image
+  name: ttt
+  value: pic_path
+  width: 100
+  height: 100
+test3:
+  type: richtext
+  name: ttt
+  value: ttt
+  color: "#0070C0"
+  bold: "false"
+test4:
+  type: list
+  name: ttt
+  value:
+    -
+      type: list
+      name: ttt
+      value:
+        -
+          type: string
+          name: ttt
+          value: ggggg
+        -
+          type: string
+          name: ttt
+          value: ggggg
+    -
+      type: list
+      name: ttt
+      value:
+        -
+          type: string
+          name: ttt
+          value: ggggg
+        -
+          type: string
+          name: ttt
+          value: ggggg
