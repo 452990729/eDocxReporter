@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import time
 from copy import deepcopy
 import pandas as pd
@@ -19,12 +20,21 @@ class ReportYamlMaker(object):
         self.sampleSheet = pd.read_csv(kwargs['sampleSheet'], sep='\t', header=0, index_col=None)
         self.qcStandards = YamlHandle.MakeDictFromYaml(kwargs['qcStandardsConfig'])
         self.resultPath = kwargs['resultPath']
-        self.sampleQuilityStat = pd.read_csv(self.resultPath+'/9.FINALSTAT/SampleQuilityStat.tsv', sep='\t', header=0, index_col=None)
-        self.sampleFinalEditRateStat = pd.read_csv(self.resultPath+'/9.FINALSTAT/SampleFinalEditRateStat.tsv', sep='\t', header=0, index_col=None)
-        self.full = kwargs['full']
         self.outpath = kwargs['outpath']
         if not os.path.exists(self.outpath):
             os.mkdir(self.outpath)
+        self.__handleResultPath()
+        self.sampleQuilityStat = pd.read_csv(self.resultPath+'/9.FINALSTAT/SampleQuilityStat.tsv', sep='\t', header=0, index_col=None)
+        self.sampleFinalEditRateStat = pd.read_csv(self.resultPath+'/9.FINALSTAT/SampleFinalEditRateStat.tsv', sep='\t', header=0, index_col=None)
+        self.full = kwargs['full']
+        dict_trans = {}
+        dict_rtrans = {}
+        for index in self.sampleSheet.index:
+            dict_trans[self.sampleSheet.loc[index, 'SampleInnerId']] = self.sampleSheet.loc[index, 'SampleId']
+            dict_rtrans[self.sampleSheet.loc[index, 'SampleId']] = self.sampleSheet.loc[index, 'SampleInnerId']
+        self.sampleQuilityStat['Sample'] = [dict_trans[i] for i in self.sampleQuilityStat['Sample']]
+        self.sampleFinalEditRateStat['Sample'] = [dict_trans[i] for i in self.sampleFinalEditRateStat['Sample']]
+        self.dict_rtrans = dict_rtrans
     
     def GenerateYaml(self):
         dict_config_target = self.__makeGeneralConfig()
@@ -63,7 +73,7 @@ class ReportYamlMaker(object):
             
         SequencingInfor = utils.GetSequencingInfor(self.sampleQuilityStat, self.sampleFinalEditRateStat, self.qcStandards)
         DepthPics = utils.MakeDepthPlot(self.sampleFinalEditRateStat, imagePath)
-        BaseQualityPics = utils.MakeBaseQulityPlot(self.sampleQuilityStat, self.resultPath, imagePath)
+        BaseQualityPics = utils.MakeBaseQulityPlot(self.sampleQuilityStat, self.resultPath, imagePath, self.dict_rtrans)
         
         dict_out['ProjectType'] = {
             'type': 'richtext',
@@ -166,3 +176,38 @@ class ReportYamlMaker(object):
                 })
             list_out.append(list_tmp)
         return list_out
+    
+    def __handleResultPath(self):
+        list_split = re.split(',', self.resultPath.strip(','))
+        if len(list_split) == 1:
+            return
+        else:
+            tmpDir = os.path.join(self.outpath, 'tmp')
+            qcPath = os.path.join(tmpDir, '2.QC')
+            finalStatPath = os.path.join(tmpDir, '9.FINALSTAT')
+            list_SampleFinalEditRateStat = []
+            list_SampleQuilityStat = []
+            os.system('mkdir -p {}'.format(qcPath))
+            os.system('mkdir -p {}'.format(finalStatPath))
+            for path in list_split:
+                root, drs, files = next(os.walk(os.path.join(path, '2.QC')))
+                for dr in drs:
+                    os.system('ln -s {} {}'.format(os.path.join(root, dr), os.path.join(qcPath, dr)))
+                list_SampleFinalEditRateStat.append(os.path.join(path, '9.FINALSTAT/SampleFinalEditRateStat.tsv'))
+                list_SampleQuilityStat.append(os.path.join(path, '9.FINALSTAT/SampleQuilityStat.tsv'))
+            self.__mergeFiles(list_SampleFinalEditRateStat, os.path.join(finalStatPath, 'SampleFinalEditRateStat.tsv'))
+            self.__mergeFiles(list_SampleQuilityStat, os.path.join(finalStatPath, 'SampleQuilityStat.tsv'))
+            self.resultPath = tmpDir
+    
+    def __mergeFiles(self, list_fl, outfile):
+        pd_tmp = pd.read_csv(list_fl[0], sep='\t', header=0, index_col=None)
+        out = pd.DataFrame(columns=list(pd_tmp.columns))
+        m = 0
+        for fl in list_fl:
+            pd_data = pd.read_csv(fl, sep='\t', header=0, index_col=None)
+            for index in pd_data.index:
+                out.loc[m, :] = pd_data.loc[index, :]
+                m += 1
+        out.to_csv(outfile, sep='\t', header=True, index=False)
+        
+        

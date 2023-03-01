@@ -40,7 +40,7 @@ def GetIndelList(pd_data, pd_sample, dict_chr, TargetRegion):
         dict_tmp['Amplicon'] = pd_tmp.loc[index, 'Amplicon']
         dict_tmp['Chr'] = dict_chr[pd_tmp.loc[index, 'Amplicon']]
         dict_tmp['Rate'] = round(float(pd_tmp.loc[index, 'EditRate'])*100, 2)
-        dict_tmp['Depth'] = int(pd_tmp.loc[index, 'SeqRaw'])
+        dict_tmp['Depth'] = int(pd_tmp.loc[index, 'TotalSeqs'])
         dict_tmp['Date'] = pd_sample[pd_sample['SampleId']==pd_tmp.loc[index, 'Sample']]['SampleCollectDate'].iloc[0]
         list_tmp.append(dict_tmp)
     return sorted(list_tmp, key=AmpliconSorted)
@@ -107,10 +107,10 @@ def GetUniformatyAndDepth(SampleFinalEditRateStat):
         if sample not in list_sample:
             list_sample.append(sample)
             pd_sub = SampleFinalEditRateStat[SampleFinalEditRateStat['Sample']==sample]
-            mean_depth = sum(list(pd_sub['SeqRaw']))/pd_sub.shape[0]
+            mean_depth = sum(list(pd_sub['TotalSeqs']))/pd_sub.shape[0]
             m = 0
             for index in pd_sub.index:
-                Totalseq = int(SampleFinalEditRateStat.loc[index, 'SeqRaw'])
+                Totalseq = int(SampleFinalEditRateStat.loc[index, 'TotalSeqs'])
                 if Totalseq >= mean_depth*0.2:
                     m += 1
             pd_out.loc[sample, :] = [sample, mean_depth, round(m/pd_sub.shape[0], 4)]
@@ -121,11 +121,11 @@ def GetBioQC(dict_DNA, dict_Library, dict_Sequencing):
         return '合格'
     return '不合格'
 
-def MakeBaseQulityPlot(SampleQuilityStat, resultpath, outpath):
+def MakeBaseQulityPlot(SampleQuilityStat, resultpath, outpath, dict_rtrans):
     list_out = []
     for index in SampleQuilityStat.index:
         sample = SampleQuilityStat.loc[index, 'Sample']
-        json_fl = resultpath+'/2.QC/'+sample+'/'+sample+'.json'
+        json_fl = resultpath+'/2.QC/'+dict_rtrans[sample]+'/'+dict_rtrans[sample]+'.json'
         with open(json_fl, 'r') as f:
             dict_json = json.loads(f.read())
         pd_data = pd.DataFrame()
@@ -158,9 +158,9 @@ def MakeDepthPlot(SampleFinalEditRateStat, outpath):
             list_sample.append(sample)
             pd_sub = SampleFinalEditRateStat[SampleFinalEditRateStat['Sample']==sample]
             pd_out = pd.DataFrame(columns=['Sample', 'Amplicon', 'SequencingBalance'])
-            mean_depth = sum(list(pd_sub['SeqRaw']))/pd_sub.shape[0]
+            mean_depth = sum(list(pd_sub['TotalSeqs']))/pd_sub.shape[0]
             for index in pd_sub.index:
-                pd_out.loc[index, :] = [sample, pd_sub.loc[index, 'Amplicon'], round(pd_sub.loc[index, 'SeqRaw']/mean_depth, 4)]
+                pd_out.loc[index, :] = [sample, pd_sub.loc[index, 'Amplicon'], round(pd_sub.loc[index, 'TotalSeqs']/mean_depth, 4)]
             sns.set_style("ticks")
             fig, axe = plt.subplots(figsize=(24,20))
             sorted_amplicon = sorted(list(pd_out['Amplicon']), key=lambda x:int(re.split('_', x)[-1].rstrip('N')))

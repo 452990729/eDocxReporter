@@ -24,6 +24,14 @@ class ReportYamlMaker(object):
         self.outpath = kwargs['outpath']
         if not os.path.exists(self.outpath):
             os.mkdir(self.outpath)
+        dict_trans = {}
+        dict_rtrans = {}
+        for index in self.sampleSheet.index:
+            dict_trans[self.sampleSheet.loc[index, 'SampleInnerId']] = self.sampleSheet.loc[index, 'SampleId']
+            dict_rtrans[self.sampleSheet.loc[index, 'SampleId']] = self.sampleSheet.loc[index, 'SampleInnerId']
+        self.sampleQuilityStat['Sample'] = [dict_trans[i] for i in self.sampleQuilityStat['Sample']]
+        self.sampleFinalEditRateStat['Sample'] = [dict_trans[i] for i in self.sampleFinalEditRateStat['Sample']]
+        self.dict_rtrans = dict_rtrans
     
     def GenerateYaml(self):
         dict_config = self.__makeGeneralConfig()
@@ -41,7 +49,7 @@ class ReportYamlMaker(object):
         IndelInfor = utils.GetIndelList(self.sampleFinalEditRateStat, self.sampleSheet, self.chrConfig, False) + \
             utils.GetIndelList(self.sampleFinalEditRateStat, self.sampleSheet, self.chrConfig, True)
         DepthPics = utils.MakeDepthPlot(self.sampleFinalEditRateStat, imagePath)
-        BaseQualityPics = utils.MakeBaseQulityPlot(self.sampleQuilityStat, self.resultPath, imagePath)
+        BaseQualityPics = utils.MakeBaseQulityPlot(self.sampleQuilityStat, self.resultPath, imagePath, self.dict_rtrans)
         TargetEditRate,TargetResult,OffTagetResult,TargetList,OffTargetList = self.__getEditRate(IndelInfor)
         BioQC = utils.GetBioQC(DNAInfor[0], LibraryInfor[0], SequencingInfor[0])
         dict_out['ProjectType'] = {
