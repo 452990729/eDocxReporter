@@ -40,7 +40,7 @@ def GetIndelList(pd_data, pd_sample, dict_chr, TargetRegion):
         dict_tmp['Amplicon'] = pd_tmp.loc[index, 'Amplicon']
         dict_tmp['Chr'] = dict_chr[pd_tmp.loc[index, 'Amplicon']]
         dict_tmp['Rate'] = round(float(pd_tmp.loc[index, 'EditRate'])*100, 2)
-        dict_tmp['Depth'] = int(pd_tmp.loc[index, 'TotalSeqs'])
+        dict_tmp['Depth'] = int(pd_tmp.loc[index, 'SeqRaw'])
         dict_tmp['Date'] = pd_sample[pd_sample['SampleId']==pd_tmp.loc[index, 'Sample']]['SampleCollectDate'].iloc[0]
         list_tmp.append(dict_tmp)
     return sorted(list_tmp, key=AmpliconSorted)
@@ -70,7 +70,10 @@ def GetLibraryInfor(pd_sample, dict_qc):
         dict_tmp['SampleId'] = pd_sample.loc[index, 'SampleId']
         dict_tmp['LibraryMainSize'] = int(pd_sample.loc[index, 'LibraryMainSize'])
         dict_tmp['LibraryMainConcentration'] = round(float(pd_sample.loc[index, 'LibraryMainConcentration']), 2)
-        if dict_tmp['LibraryMainSize'] >= list_size[0] and dict_tmp['LibraryMainSize'] <= list_size[1]:
+        dict_tmp['LibraryMainPCT'] = round(float(pd_sample.loc[index, 'Library_main_pct']), 2)
+        if dict_tmp['LibraryMainSize'] >= list_size[0] and dict_tmp['LibraryMainSize'] <= list_size[1] and \
+            dict_tmp['LibraryMainConcentration'] >= dict_qc['LibraryMainConcentration'] and \
+            dict_tmp['LibraryMainPCT'] >= dict_qc['LibraryMainPCT']:
             dict_tmp['QC'] = "合格"
         else:
             dict_tmp['QC'] = "不合格"
@@ -85,11 +88,12 @@ def GetSequencingInfor(SampleQuilityStat, SampleFinalEditRateStat, dict_qc):
         dict_tmp['SampleId'] = SampleQuilityStat.loc[index, 'Sample']
         dict_tmp['SequencingBase'] = round(int(SampleQuilityStat.loc[index, 'before_filtering_total_bases'])/1e9, 1)
         dict_tmp['SequencingDepth'] = int(UniformatyAndDepth.loc[SampleQuilityStat.loc[index, 'Sample'], 'SequencingDepth'])
+        dict_tmp['MinSequencingDepth'] = int(UniformatyAndDepth.loc[SampleQuilityStat.loc[index, 'Sample'], 'MinSequencingDepth'])
         dict_tmp['SequencingUniformaty'] = round(UniformatyAndDepth.loc[SampleQuilityStat.loc[index, 'Sample'], 'SequencingUniformaty']*100, 2)
         dict_tmp['SequencingMergeRate'] = round(float(SampleQuilityStat.loc[index, 'MergedRate'])*100, 2)
         dict_tmp['SequencingQ30'] = round(float(SampleQuilityStat.loc[index, 'before_filtering_q30_rate'])*100, 2)
         if dict_tmp['SequencingBase'] >= float(dict_qc['SequencingBase']) and \
-                dict_tmp['SequencingDepth'] >= int(dict_qc['SequencingDepth']) and \
+                dict_tmp['MinSequencingDepth'] >= int(dict_qc['SequencingDepth']) and \
                 dict_tmp['SequencingUniformaty'] >= float(dict_qc['SequencingUniformaty'])*100 and \
                 dict_tmp['SequencingMergeRate'] >= float(dict_qc['SequencingMergeRate'])*100 and \
                 dict_tmp['SequencingQ30'] >= float(dict_qc['SequencingQ30'])*100:
@@ -101,19 +105,20 @@ def GetSequencingInfor(SampleQuilityStat, SampleFinalEditRateStat, dict_qc):
 
 def GetUniformatyAndDepth(SampleFinalEditRateStat):
     list_sample = []
-    pd_out = pd.DataFrame(columns=['Sample', 'SequencingDepth', 'SequencingUniformaty'])
+    pd_out = pd.DataFrame(columns=['Sample', 'SequencingDepth', 'SequencingUniformaty', 'MinSequencingDepth'])
     for index in SampleFinalEditRateStat.index:
         sample = SampleFinalEditRateStat.loc[index, 'Sample']
         if sample not in list_sample:
             list_sample.append(sample)
             pd_sub = SampleFinalEditRateStat[SampleFinalEditRateStat['Sample']==sample]
-            mean_depth = sum(list(pd_sub['TotalSeqs']))/pd_sub.shape[0]
+            mean_depth = sum(list(pd_sub['SeqRaw']))/pd_sub.shape[0]
+            min_depth = min(list(pd_sub['SeqRaw']))
             m = 0
             for index in pd_sub.index:
-                Totalseq = int(SampleFinalEditRateStat.loc[index, 'TotalSeqs'])
+                Totalseq = int(SampleFinalEditRateStat.loc[index, 'SeqRaw'])
                 if Totalseq >= mean_depth*0.2:
                     m += 1
-            pd_out.loc[sample, :] = [sample, mean_depth, round(m/pd_sub.shape[0], 4)]
+            pd_out.loc[sample, :] = [sample, mean_depth, round(m/pd_sub.shape[0], 4), min_depth]
     return pd_out
 
 def GetBioQC(dict_DNA, dict_Library, dict_Sequencing):
@@ -158,9 +163,9 @@ def MakeDepthPlot(SampleFinalEditRateStat, outpath):
             list_sample.append(sample)
             pd_sub = SampleFinalEditRateStat[SampleFinalEditRateStat['Sample']==sample]
             pd_out = pd.DataFrame(columns=['Sample', 'Amplicon', 'SequencingBalance'])
-            mean_depth = sum(list(pd_sub['TotalSeqs']))/pd_sub.shape[0]
+            mean_depth = sum(list(pd_sub['SeqRaw']))/pd_sub.shape[0]
             for index in pd_sub.index:
-                pd_out.loc[index, :] = [sample, pd_sub.loc[index, 'Amplicon'], round(pd_sub.loc[index, 'TotalSeqs']/mean_depth, 4)]
+                pd_out.loc[index, :] = [sample, pd_sub.loc[index, 'Amplicon'], round(pd_sub.loc[index, 'SeqRaw']/mean_depth, 4)]
             sns.set_style("ticks")
             fig, axe = plt.subplots(figsize=(24,20))
             sorted_amplicon = sorted(list(pd_out['Amplicon']), key=lambda x:int(re.split('_', x)[-1].rstrip('N')))
