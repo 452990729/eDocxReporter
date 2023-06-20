@@ -39,7 +39,7 @@ def GetIndelList(pd_data, pd_sample, dict_chr, TargetRegion):
         dict_tmp['SampleId'] = pd_tmp.loc[index, 'Sample']
         dict_tmp['Amplicon'] = pd_tmp.loc[index, 'Amplicon']
         dict_tmp['Chr'] = dict_chr[pd_tmp.loc[index, 'Amplicon']]
-        dict_tmp['Rate'] = round(float(pd_tmp.loc[index, 'EditRate'])*100, 2)
+        dict_tmp['Rate'] = str(round(float(pd_tmp.loc[index, 'EditRate'])*100, 2))
         dict_tmp['Depth'] = int(pd_tmp.loc[index, 'SeqRaw'])
         dict_tmp['Date'] = pd_sample[pd_sample['SampleId']==pd_tmp.loc[index, 'Sample']]['SampleCollectDate'].iloc[0]
         list_tmp.append(dict_tmp)
@@ -54,7 +54,7 @@ def GetDNAInfor(pd_sample, dict_qc):
         dict_tmp['DNATotal'] = round(float(pd_sample.loc[index, 'DNATotal']), 2)
         dict_tmp['A260A280'] = round(float(pd_sample.loc[index, 'A260A280']), 2)
         dict_tmp['A260A230'] = round(float(pd_sample.loc[index, 'A260A230']), 2)
-        dict_tmp['SampleTotal'] = int(pd_sample.loc[index, 'SampleTotal'])
+        dict_tmp['SampleTotal'] = float(pd_sample.loc[index, 'SampleTotal'])
         if int(dict_tmp['DNATotal']) >= int(dict_qc["DNATotal"]):
             dict_tmp['QC'] = "合格"
         else:

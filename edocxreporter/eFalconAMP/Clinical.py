@@ -185,15 +185,16 @@ class ReportYamlMaker(object):
         TargetList = []
         OffTargetList = []
         for i in IndelInfor:
+            print(i['Rate'])
             if i['Amplicon'] == 'EDI_22N':
-                TargetEditRate = i['Rate']
+                TargetEditRate = float(i['Rate'])
                 if TargetEditRate >= 2:
                     TargetResult = '有效编辑'
                 else:
                     TargetResult = '无效编辑'
                 TargetList.append(i)
             else:
-                if i['Rate'] > 1:
+                if float(i['Rate']) > 1:
                     OffTagetResult += 1
                 OffTargetList.append(i)
         return TargetEditRate,TargetResult,OffTagetResult,TargetList,OffTargetList
